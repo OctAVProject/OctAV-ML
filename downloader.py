@@ -1,73 +1,57 @@
 #!/bin/python
 # coding: utf-8
 
-### LIBRARIES
 import requests
-import argparse
 import os
 import re
+import config
 
-import configManager
+VIRUS_SHARE_BASE_URL = "https://virusshare.com/hashes/VirusShare_"
+MDL_URL = "http://www.malwaredomainlist.com/mdlcsv.php"
 
-### Code
 
-cm = None
+# TODO : REMOVE DUPLICATES WITHOUT OVERLOADING THE MEMORY. Bloom filter ?
 
-class Downloader(object):
-    """File management for Octav.
 
-    Download new signature files and untrusted domain name
-    """
+def sync_md5_hashes():
 
-    def __init__(self):
-        global cm
-        self.cm = configManager.ConfigurationManager()
-        cm = self.cm
+    try:
+        os.mkdir("files/hashes")
+    except FileExistsError:
+        pass
 
-        self.lastHashesFileDownloaded = self.cm.sync.lastHashesFileDownloaded
-        self.virusShareHashesBaseURL = "https://virusshare.com/hashes/VirusShare_"
-        self.md5hashes_dir = self.cm.files_dir + "md5_hashes/"
-        self.ipanddomain_dir = self.cm.files_dir + "malicious_domains_and_ips/"
+    file_number_to_download = int(config.get("sync", "lastHashesFileDownloaded")) + 1
 
-    def convertFileNumberToString(self, fileNumber):
-        fileNumberString = str(fileNumber)
-        while len(fileNumberString) < 5:
-            fileNumberString = "0" + fileNumberString
-        return fileNumberString
+    while True:
+        file_number_to_download_string = str(file_number_to_download).zfill(5)
+        result = requests.get(VIRUS_SHARE_BASE_URL + file_number_to_download_string + ".md5")
 
-    def syncMD5Hashes(self):
-        if not os.path.isdir(self.md5hashes_dir):
-            os.makedirs(self.md5hashes_dir)
+        # code 404 means we have reached the end of what we need to download
+        if result.status_code == 404:
+            break
 
-        fileNumber = int(self.lastHashesFileDownloaded) + 1
-        status = 200
+        elif result.status_code != 200:
+            raise Exception("Unusual error code ({}).".format(result.status_code))
 
-        while int(status) == 200 and fileNumber < 2:
-            fileNumberString = self.convertFileNumberToString(fileNumber)
-            url = self.virusShareHashesBaseURL + fileNumberString + ".md5"
-            status, body = self.downloadFile(url)
+        body = result.text
+        body = re.sub(r'#.*\n?', '', body, flags=re.MULTILINE)
 
-            body = re.sub(r'#.*\n?', '', body, flags=re.MULTILINE)
+        with open("files/hashes/{}.md5".format(file_number_to_download_string), "w") as hash_file:
+            hash_file.write(body)
 
-            if int(status) == 200:
-                with open("{}{}.md5".format(self.md5hashes_dir, fileNumberString), "w") as hashFile:
-                    hashFile.write(body)
+        print("DOWNLOADED:", result.url)
 
-            fileNumber += 1
-        self.cm.updateConfig("lastHashesFileDownloaded", str(fileNumber-1), "sync")
+        config.update("sync", "lastHashesFileDownloaded", file_number_to_download)
+        file_number_to_download += 1
 
-    def syncMDLIpAndDomain(self):
-        if not os.path.isdir(self.ipanddomain_dir):
-            os.makedirs(self.ipanddomain_dir)
 
-        url = "http://www.malwaredomainlist.com/mdlcsv.php"
-        status, body = self.downloadFile(url)
-        if int(status) == 200: 
-            with open("{}listIpAndDomains.csv".format(self.ipanddomain_dir), "a") as listDomainFile:
-                listDomainFile.write(body)
+def sync_mdl_ips_and_domains():
 
-    def downloadFile(self, url):
-        print(url)
-        resp = requests.get(url)        
-        return resp.status_code, resp.text
+    result = requests.get(MDL_URL)
 
+    if result.status_code != 200:
+        print("Can't download Malware Domain List, remote server down ?")
+        return
+
+    with open("files/listIpAndDomains.csv", "a") as listDomainFile:
+        listDomainFile.write(result.text)

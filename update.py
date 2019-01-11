@@ -26,13 +26,11 @@ def git_push():
     repo = Repo("files")
 
     print("Current commit:", repo.head.commit)
-    files_to_add = [item.a_path for item in repo.index.diff(None)]
+    files_to_add = [item.a_path for item in repo.index.diff(None)] + repo.untracked_files
 
     if len(files_to_add) > 0:
-        for file in files_to_add:
-            repo.git.add(file)
-            print("Added:", file)
-
+        repo.git.add(files_to_add)
+        print("Added:", files_to_add)
         repo.index.commit("OctAV updated")
         print("New commit:", repo.head.commit)
         repo.remotes.origin.push()
@@ -46,7 +44,7 @@ if __name__ == "__main__":
     print("OctAV updater is starting...")
     set_working_directory()
 
-    retrieve_malicious_domains_and_ips()
-    retrieve_malware_hashes()
+    #retrieve_malicious_domains_and_ips()
+    #retrieve_malware_hashes()
 
     git_push()

@@ -93,6 +93,7 @@ class ConfigurationManager(object):
             sys.exit()
 
         self._config.set(config_section, name, value)
+        self.sync.set_config(self._config)
 
         with open(CONFIG_DIR + 'config.cfg', 'w') as config_fp:
             fcntl.lockf(config_fp, fcntl.LOCK_EX)
@@ -130,7 +131,7 @@ class Section(object):
             >>> section.set_config({"last_hashes_file_downloaded": 0})
         """
         self._config = config
-        self.__set_values(self._config)
+        self._set_values(self._config)
 
     def get_config(self):
         """

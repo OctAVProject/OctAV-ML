@@ -1,6 +1,6 @@
-#!/bin/python
 # coding: utf-8
 
+<<<<<<< HEAD
 """Downloader module for Octav updater.
 
     Module used to download and save file containing hashes of malwares,
@@ -8,10 +8,12 @@
 """
 
 # LIBRARIES
+=======
+>>>>>>> a5b567d39013f8e7c136548d6cfdaa09e081fe42
 import requests
-import argparse
 import os
 import re
+<<<<<<< HEAD
 import io
 import zipfile
 
@@ -21,9 +23,17 @@ import configmanager
 
 HOME_DIR = "/etc/octav"
 FILE_DIR = HOME_DIR + '/files/'
+=======
+import config
 
-cm = None
+VIRUS_SHARE_BASE_URL = "https://virusshare.com/hashes/VirusShare_"
+MDL_URL = "http://www.malwaredomainlist.com/mdlcsv.php"
 
+>>>>>>> a5b567d39013f8e7c136548d6cfdaa09e081fe42
+
+# TODO : REMOVE DUPLICATES WITHOUT OVERLOADING THE MEMORY. Bloom filter ?
+
+<<<<<<< HEAD
 
 class Downloader(object):
     """File management for Octav.
@@ -60,9 +70,36 @@ class Downloader(object):
             file_number_s = str(file_number).zfill(5)
             url = self._vs_hashes_baseurl + file_number_s + ".md5"
             status, body = self._download_file(url)
+=======
 
-            body = re.sub(r'#.*\n?', '', body, flags=re.MULTILINE)
+def sync_md5_hashes():
 
+    try:
+        os.mkdir("files/hashes")
+    except FileExistsError:
+        pass
+
+    file_number_to_download = int(config.get("sync", "lastHashesFileDownloaded")) + 1
+
+    while True:
+        file_number_to_download_string = str(file_number_to_download).zfill(5)
+        result = requests.get(VIRUS_SHARE_BASE_URL + file_number_to_download_string + ".md5")
+
+        # code 404 means we have reached the end of what we need to download
+        if result.status_code == 404:
+            break
+
+        elif result.status_code != 200:
+            raise Exception("Unusual error code ({}).".format(result.status_code))
+
+        body = result.text
+        body = re.sub(r'#.*\n?', '', body, flags=re.MULTILINE)
+>>>>>>> a5b567d39013f8e7c136548d6cfdaa09e081fe42
+
+        with open("files/hashes/{}.md5".format(file_number_to_download_string), "w") as hash_file:
+            hash_file.write(body)
+
+<<<<<<< HEAD
             if int(status) == 200:
                 with open("{}{}.md5".format(
                         self._md5_hashes_dir,
@@ -131,3 +168,21 @@ class Downloader(object):
         resp = requests.get(url)
         zip_file = zipfile.ZipFile(io.BytesIO(resp.content))
         return resp.status_code, zip_file
+=======
+        print("DOWNLOADED:", result.url)
+
+        config.update("sync", "lastHashesFileDownloaded", file_number_to_download)
+        file_number_to_download += 1
+
+
+def sync_mdl_ips_and_domains():
+
+    result = requests.get(MDL_URL)
+
+    if result.status_code != 200:
+        print("Can't download Malware Domain List, remote server down ?")
+        return
+
+    with open("files/listIpAndDomains.csv", "a") as listDomainFile:
+        listDomainFile.write(result.text)
+>>>>>>> a5b567d39013f8e7c136548d6cfdaa09e081fe42

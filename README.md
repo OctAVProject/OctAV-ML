@@ -1,5 +1,10 @@
 # OctAV Updater
 
-The updater has 2 main roles :
-- Keep the files repository up to date
-- Perform machine learning (and add the resulting model to the files repo)
+## Goals
+- Retrieve malicious domains and ips
+- Retrieve known hashes
+- Perform machine learning
+- Keep the `OctAV-Files` repository up to date
+
+## Requirements
+- git

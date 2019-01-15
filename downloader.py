@@ -6,29 +6,23 @@
     malicious ips and domain names.
 """
 
-# LIBRARIES
 import requests
 import os
 import re
 import io
 import zipfile
 
-import configmanager
+import config
 
-# Code
-
-HOME_DIR = "/etc/octav"
-FILE_DIR = HOME_DIR + '/files/'
+FILE_DIR = config.HOME_DIR + '/testpush/'
 MD5_HASHES_DIR = FILE_DIR + "md5_hashes/"
 IP_AND_DOMAINS_DIR = FILE_DIR + "malicious_domains_and_ips/"
 VIRUS_SHARE_BASE_URL = "https://virusshare.com/hashes/VirusShare_"
 MDL_URL = "http://www.malwaredomainlist.com/mdlcsv.php"
 MD_DOMAIN_URl = "http://www.malware-domains.com/files/justdomains.zip"
 
-CM = configmanager.ConfigurationManager()
 
-
-# TODO : REMOVE DUPLICATES WITHOUT OVERLOADING THE MEMORY. Bloom filter ?
+# TODO : REMOVE DUPLICATES WITHOUT OVERLOADING THE MEMORY. Bloom filter ? AND HANDLE EXCEPTION IS CASE OF LOSS OF CONNECTION DURING DOWNLOADING
 
 def sync_md5_hashes():
     """
@@ -37,13 +31,13 @@ def sync_md5_hashes():
     if not os.path.isdir(MD5_HASHES_DIR):
         os.makedirs(MD5_HASHES_DIR)
 
-    file_number = int(CM.sync.last_hashes_file_downloaded) + 1
+    file_number = int(config.get_option("sync", "last_hashes_file_downloaded")) + 1
     status = 200
 
-    while status == 200 and file_number < 1:
+    while status == 200:
         file_number_s = str(file_number).zfill(5)
         url = VIRUS_SHARE_BASE_URL + file_number_s + ".md5"
-        print("Downloading {}".format(url))
+        config.logger.info("Downloading {}".format(url))
         resp = requests.get(url)
         status = resp.status_code
         body = resp.text
@@ -54,15 +48,13 @@ def sync_md5_hashes():
                     MD5_HASHES_DIR,
                     file_number_s), "w") as hashes_fp:
                 hashes_fp.write(body)
-
-        file_number += 1
+            file_number += 1
 
     # code 404 means we have reached the end of what we need to download
-    if status != 404 and status != 200:
+    if status != 404:
         raise Exception("Unusual error code ({}).".format(status))
 
-    CM.update_config("last_hashes_file_downloaded",
-                     str(file_number-1), "sync")
+    config.update_option("sync", "last_hashes_file_downloaded", str(file_number-1))
 
 
 def sync_mdl_ips_and_domains():
@@ -73,8 +65,8 @@ def sync_mdl_ips_and_domains():
     if not os.path.isdir(IP_AND_DOMAINS_DIR):
         os.makedirs(IP_AND_DOMAINS_DIR)
 
-    if(CM.sync.first_sync_done_from_mdl) == "no":
-        print("Downloading {}".format(MDL_URL))
+    if config.get_option("sync", "first_sync_done_from_mdl") == "no":
+        config.logger.info("Downloading {}".format(MDL_URL))
         resp = requests.get(MDL_URL)
         status = resp.status_code
         body = resp.text
@@ -82,7 +74,7 @@ def sync_mdl_ips_and_domains():
             with open("{}listIpAndDomains.csv".format(
                     IP_AND_DOMAINS_DIR), "a") as list_domains_fp:
                 list_domains_fp.write(body)
-            CM.update_config("first_sync_done_from_mdl", "yes", "sync")
+            config.update_option("sync", "first_sync_done_from_mdl", "yes")
         else:
             raise Exception("Error during file downloading (status {}).".
                             format(status))
@@ -96,7 +88,7 @@ def sync_md_domains():
     if not os.path.isdir(IP_AND_DOMAINS_DIR):
         os.makedirs(IP_AND_DOMAINS_DIR)
 
-    print(MD_DOMAIN_URl)
+    config.logger.info("Downloading and extracting {}".format(MD_DOMAIN_URl))
     resp = requests.get(MD_DOMAIN_URl)
     zip_file = zipfile.ZipFile(io.BytesIO(resp.content))
     status = resp.status_code

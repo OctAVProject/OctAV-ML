@@ -84,7 +84,7 @@ def _md5_hashes():
         with open("{}{:05d}.md5".format(MD5_HASHES_DIR, file_number), "w") as hashes_file:
             hashes_file.write(content)
 
-    config.update("sync", "last_hashes_file_downloaded", file_number)
+        config.update("sync", "last_hashes_file_downloaded", file_number)
 
 
 def _mdl_ips_and_domains():
@@ -96,7 +96,7 @@ def _mdl_ips_and_domains():
         os.makedirs(IP_AND_DOMAINS_DIR)
 
     if config.getbool("sync", "first_sync_done_from_mdl"):
-        _logger.info("Downloading {}".format(MDL_URL))
+        _logger.debug("Downloading {}".format(MDL_URL))
         resp = requests.get(MDL_URL)
         status = resp.status_code
 

@@ -24,7 +24,7 @@ if __name__ == "__main__":
                         default="INFO", help="Set the log level")
 
     parser.add_argument("--ml-only", action="store_true", help="Only perform machine learning.")
-    parser.add_argument("--sync-only", action="store_true", help="Only perform machine learning.")
+    parser.add_argument("--sync-only", action="store_true", help="Only perform synchronisation.")
 
     args = parser.parse_args()
 

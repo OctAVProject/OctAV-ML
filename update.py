@@ -1,53 +1,35 @@
 #!/usr/bin/python3
 # coding: utf-8
 
-"""Updater module for Octav.
-
-    Module used to synchronyze github file repository with public
-    lists for malware hashes and malicious domain names et ips.
-"""
-import requests
-import argparse
 import datetime
 import os
-import logging
-
 from git import Repo
 
-import downloader
 import config
+import downloader
 
 
 def set_working_directory():
-    """
-        Set the working directory to the script directory
-    """
+    """Set the working directory to the script's directory."""
+
     abspath = os.path.abspath(__file__)
     dname = os.path.dirname(abspath)
     os.chdir(dname)
 
 
 def retrieve_malicious_domains_and_ips():
-    """
-        Download malicious domain names and ips with public lists
-        from malwaredomainlist.com
-    """
     downloader.sync_mdl_ips_and_domains()
     downloader.sync_md_domains()
 
 
 def retrieve_malware_hashes():
-    """
-        Download malware hashes public lists from malwaredomainlist.com
-    """
     downloader.sync_md5_hashes()
 
 
 # TODO : use SSH key
 def git_push():
-    """
-        Push new download files to github file repository
-    """
+    """Commit new downloaded files to `files` repository and push to remote."""
+
     repo = Repo("/etc/octav/files")
 
     config.logger.info("Current commit : {}".format(repo.head.commit))
@@ -70,14 +52,10 @@ def git_push():
 
 
 if __name__ == "__main__":
-    """
-        Launch updater to synchronize bighub repository.
-    """
     config.set_logger()
     config.logger.info("OctAV updater is starting...")
     set_working_directory()
 
     retrieve_malicious_domains_and_ips()
     retrieve_malware_hashes()
-
     git_push()

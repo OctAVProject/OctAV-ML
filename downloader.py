@@ -1,17 +1,10 @@
 # coding: utf-8
 
-"""Downloader module for Octav updater.
-
-    Module used to download and save file containing hashes of malwares,
-    malicious ips and domain names.
-"""
-
 import requests
 import os
 import re
 import io
 import zipfile
-
 import config
 
 FILE_DIR = config.HOME_DIR + '/testpush/'
@@ -22,12 +15,12 @@ MDL_URL = "http://www.malwaredomainlist.com/mdlcsv.php"
 MD_DOMAIN_URl = "http://www.malware-domains.com/files/justdomains.zip"
 
 
-# TODO : REMOVE DUPLICATES WITHOUT OVERLOADING THE MEMORY. Bloom filter ? AND HANDLE EXCEPTION IS CASE OF LOSS OF CONNECTION DURING DOWNLOADING
+# TODO : REMOVE DUPLICATES WITHOUT OVERLOADING THE MEMORY. Bloom filter ?
+# TODO : Handle HTTP errors
 
 def sync_md5_hashes():
-    """
-        Download new hash files from virusshare.com.
-    """
+    """Download new hash files from `virusshare.com`."""
+
     if not os.path.isdir(MD5_HASHES_DIR):
         os.makedirs(MD5_HASHES_DIR)
 
@@ -58,10 +51,8 @@ def sync_md5_hashes():
 
 
 def sync_mdl_ips_and_domains():
-    """
-        Download new malicious domain name lists from
-        malwaredomainlist.com.
-    """
+    """Download new malicious domain names lists from `malwaredomainlist.com`."""
+
     if not os.path.isdir(IP_AND_DOMAINS_DIR):
         os.makedirs(IP_AND_DOMAINS_DIR)
 
@@ -81,10 +72,7 @@ def sync_mdl_ips_and_domains():
 
 
 def sync_md_domains():
-    """
-        Download new malicious domain name lists from
-        malwaredomainlist.com.
-    """
+    """Download new malicious domain name lists from `malware-domains.com`."""
     if not os.path.isdir(IP_AND_DOMAINS_DIR):
         os.makedirs(IP_AND_DOMAINS_DIR)
 

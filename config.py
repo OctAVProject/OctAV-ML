@@ -1,11 +1,6 @@
 #!/bin/python
 # coding: utf-8
 
-"""Configuration management for Octav updater.
-
-    Configuration file is located in the <homedir>/config directory.
-    This file contains tools to manage these configuration files.
-"""
 import logging
 from logging.handlers import TimedRotatingFileHandler
 
@@ -20,7 +15,7 @@ CONFIG_FILENAME = "octav.conf"
 _config = configparser.ConfigParser()
 _config.read(CONFIG_DIR + CONFIG_FILENAME)
 
-logger = logging.getLogger("Octav Log")
+logger = logging.getLogger("OctavLogger")
 
 
 def set_logger():
@@ -40,51 +35,50 @@ def set_logger():
 
 
 def get_option(section, key):
-    """
-        Get class instance variables from name.
+    """Get `key` from `section` in `CONFIG_FILENAME`.
 
-        :param section: Name of the section in which the option is located
-        :type section: str
-        :param key: Name of the option to get
-        :type key: str
-        :return: current value for option specified
-        :rtype: str
 
-        :Example:
+    section : str
+        Name of the section in which the option is located
+
+    key : str
+        Name of the option to get
+
+    Returns
+    -------
+        str
+            Current value for option specified
+
+    Examples
+    --------
         >>> config.get_option("last_hashes_file_downloaded")
     """
+
     if section not in _config:
-        logger.exception('Attempt to read a non-existent section ({})'.format(section))
+        logger.exception("Attempt to read a non-existent section '{}'".format(section))
         raise Exception("The section '{}' doesn't exist".format(section))
 
     if key not in _config[section]:
-        logger.exception('Attempt to read a non-existent option in section {} ({})'.format(section, key))
-        raise Exception("The key '{}' doesn't exist in section '{}'".format(section, key))
+        logger.exception("Attempt to read a non-existent option '{}' in section '{}'".format(key, section))
+        raise Exception("The key '{}' doesn't exist in section '{}'".format(key, section))
 
     return _config.get(section, key)
 
 
 def update_option(section, key, value):
-    """
-        Update the application configuration (name / value pair).
-        Excluside lock is used to block shared lock (read mode).
+    """Update `key` in `section` with the new `value` in `CONFIG_FILENAME`.
 
-        :param section: section name in which is located the option
-        :type section: str
-        :param key: option name to update
-        :type key: str
-        :param value: new value to save
-        :type value: str
-
-        :Example:
-        >>> config.update_option("sync", "last_hashes_file_downloaded", "0")
+    Examples
+    --------
+        >>> config.update_option("sync", "last_hashes_file_downloaded", 0)
     """
+
     if section not in _config:
-        logger.exception('Attempt to update a non-existent option in section {} ({}: {})'.format(section, key, value))
+        logger.exception("Attempt to update a non-existent section '{}'".format(section))
         raise Exception("The section '{}' doesn't exist".format(section))
 
     _config.set(section, key, value)
-    logger.info('Updating application config ({}: {}) in section {}'.format(key, value, section))
+    logger.info("Updating option '{}' with value '{}' in section '{}'".format(key, value, section))
 
     with open(CONFIG_DIR + CONFIG_FILENAME, "w") as config_file:
         _config.write(config_file)

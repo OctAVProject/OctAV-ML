@@ -36,5 +36,5 @@ if __name__ == "__main__":
     config.set_logger(args.log_level)
 
     if not args.ml_only:
-        sync.all(vs_user, vs_pass)
+        sync.all(args.vs_user, args.vs_pass)
         sync.git_push()

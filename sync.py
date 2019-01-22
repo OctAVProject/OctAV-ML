@@ -14,6 +14,7 @@ from html.parser import HTMLParser
 REPO_PATH = 'files/'
 MD5_HASHES_DIR = REPO_PATH + "md5_hashes/"
 IP_AND_DOMAINS_DIR = REPO_PATH + "malicious_domains_and_ips/"
+MALWARES_DIR = REPO_PATH + "malwares/"
 VIRUS_SHARE_BASE_URL = "https://virusshare.com/hashes/VirusShare_"
 MDL_URL = "http://www.malwaredomainlist.com/mdlcsv.php"
 MD_DOMAIN_URl = "http://www.malware-domains.com/files/justdomains.zip"
@@ -173,7 +174,7 @@ class VirusShareHTMLParser(HTMLParser):
                 zip_file = zipfile.ZipFile(io.BytesIO(resp.content))
                 status = resp.status_code
                 if status == 200:
-                    zip_file.extractall(".", pwd=str.encode("infected"))
+                    zip_file.extractall(MALWARES_DIR, pwd=str.encode("infected"))
                 else:
                     raise Exception("Error during file downloading (status {}).".format(resp.status_code))
             else:
@@ -186,6 +187,13 @@ class VirusShareHTMLParser(HTMLParser):
 
 
 def _download_virus_from_virusshare(user, password):
+    """Download new malwares from `virusshare.com`."""
+
+    _logger.info("Retrieving malwares...")
+
+    if not os.path.isdir(MALWARES_DIR):
+        os.makedirs(MALWARES_DIR)
+
     respGetVS = requests.get('https://virusshare.com')
     if respGetVS.status_code == 200:
         cookie = respGetVS.headers['Set-Cookie'].split(";")[0]

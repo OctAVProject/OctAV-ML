@@ -37,4 +37,4 @@ if __name__ == "__main__":
 
     if not args.ml_only:
         sync.all(args.vs_user, args.vs_pass)
-        sync.git_push()
+        #sync.git_push()

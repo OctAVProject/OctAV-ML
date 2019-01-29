@@ -7,12 +7,14 @@ import re
 import io
 import zipfile
 import config
+import ssdeep
 from git import Repo
 from datetime import datetime
 from html.parser import HTMLParser
 
 REPO_PATH = 'files/'
 MD5_HASHES_DIR = REPO_PATH + "md5_hashes/"
+SSDEEP_HASHES_DIR = REPO_PATH + "ssdeep_hashes/"
 IP_AND_DOMAINS_DIR = REPO_PATH + "malicious_domains_and_ips/"
 MALWARES_DIR = REPO_PATH + "malwares/"
 VIRUS_SHARE_BASE_URL = "https://virusshare.com/hashes/VirusShare_"
@@ -132,54 +134,71 @@ def _md_domains():
     zip_file.extractall(IP_AND_DOMAINS_DIR)
 
 
+def _store_ssdeep_hash(path):
+    """Calculate ssdeep for file at path and store it in ssdeep file."""
+
+    if not os.path.isdir(SSDEEP_HASHES_DIR):
+        os.makedirs(SSDEEP_HASHES_DIR)
+
+    if not os.path.isfile("{}ssdeep.txt".format(SSDEEP_HASHES_DIR)):
+        file = open("{}ssdeep.txt".format(SSDEEP_HASHES_DIR), "w")
+        file.close()
+
+    ssdeep_hash = ssdeep.hash_from_file(path)
+    with open("{}ssdeep.txt".format(SSDEEP_HASHES_DIR), "r+") as ssdeep_file:
+        lines = ssdeep_file.readlines()
+        if ssdeep_hash not in lines:
+            ssdeep_file.write("{}\n".format(ssdeep_hash))
+
+
 class VirusShareHTMLParser(HTMLParser):
 
-    def __init__(self):
+    def __init__(self, headers):
         HTMLParser.__init__(self)
+        self.headers = headers
         self.in_table = False
         self.in_a = False
         self.date_in_next = False
         self.out_of_a = False
         self.dl_url = ""
         self.stop = False
+        self.ignore = False
 
     def handle_starttag(self, tag, attrs):
         if tag == "table":
             self.in_table = True
         elif tag == "a" and self.in_table and not self.dl_url:
-            enf_of_url = attrs[0][1]
-            self.dl_url = "https://virusshare.com/{}".format(enf_of_url)
-        elif tag == "a" and self.in_table:
-            self.date_in_next = True
-            
+            end_of_url = attrs[0][1]
+            self.dl_url = "https://virusshare.com/{}".format(end_of_url)
+            if end_of_url.split("=")[1] in os.listdir(MALWARES_DIR):
+                self.ignore = True
 
     def handle_endtag(self, tag):
         if tag == "table":
             self.in_table = False
 
     def handle_data(self, data):
-        if self.date_in_next and not self.out_of_a:
-            self.out_of_a = True
-        elif self.date_in_next and self.out_of_a:
-            date = data.split("submitted ")[1]
+        if "VirusShare info last updated" in data:
+            date = data.split("updated ")[1]
             date = date.split(" UTC")[0]
-            print(date)
-            date_t = datetime.datetime.strptime(date, "%Y-%m-%d %H:%M:%S")
-            date_base = datetime.datetime.strptime("2016-07-15 23:27:31", "%Y-%m-%d %H:%M:%S")
-            if date_base < date_t:
-                print(self.dl_url)
-
-                print("Downloading...")
-                resp = requests.get(self.dl_url, headers=headers)
-                zip_file = zipfile.ZipFile(io.BytesIO(resp.content))
-                status = resp.status_code
-                if status == 200:
-                    zip_file.extractall(MALWARES_DIR, pwd=str.encode("infected"))
+            date_t = datetime.strptime(date, "%Y-%m-%d %H:%M:%S")
+            date_base = datetime.strptime("2016-07-15 23:27:31", "%Y-%m-%d %H:%M:%S")
+            if not self.ignore:
+                if date_base < date_t:
+                    resp = requests.get(self.dl_url, headers=self.headers)
+                    zip_file = zipfile.ZipFile(io.BytesIO(resp.content))
+                    status = resp.status_code
+                    if status == 200:
+                        zip_file.extractall(MALWARES_DIR, pwd=str.encode("infected"))
+                        _store_ssdeep_hash("{}{}".format(MALWARES_DIR, zip_file.namelist()[0]))
+                    else:
+                        raise Exception("Error during file downloading (status {}).".format(resp.status_code))
                 else:
-                    raise Exception("Error during file downloading (status {}).".format(resp.status_code))
+                    _logger.debug("Stopping...")
+                    self.stop = True
             else:
-                print("Stopping...")
-                self.stop = True
+                _logger.debug("Ignored, already downloaded")
+                self.ignore = False
 
             self.out_of_a = False
             self.dl_url = ""
@@ -202,7 +221,7 @@ def _download_virus_from_virusshare(user, password):
         respAuth = requests.post('https://virusshare.com/processlogin.4n6', data = {"username":"{}".format(user), "password":"{}".format(password)}, headers=headers)
         if "NO BOTS! NO SCRAPERS!" not in respAuth.text:
             start = 0
-            parser = MyHTMLParser()
+            parser = VirusShareHTMLParser(headers)
 
             while not parser.stop:
                 resp = requests.post('https://virusshare.com/search.4n6', data = {'search':'linux', 'start':'{}'.format(start)}, headers=headers)

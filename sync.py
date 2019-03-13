@@ -178,11 +178,12 @@ class VirusShareHTMLParser(HTMLParser):
             self.in_table = False
 
     def handle_data(self, data):
-        if "VirusShare info last updated" in data:
+        if "VirusShare info last updated" in data and not self.stop:
             date = data.split("updated ")[1]
             date = date.split(" UTC")[0]
             date_t = datetime.strptime(date, "%Y-%m-%d %H:%M:%S")
-            date_base = datetime.strptime("2016-07-15 23:27:31", "%Y-%m-%d %H:%M:%S")
+            date_base = config.getstr("sync", "last_sync_date")
+            date_base = datetime.strptime(date_base, "%Y-%m-%d %H:%M:%S")
             if not self.ignore:
                 if date_base < date_t:
                     resp = requests.get(self.dl_url, headers=self.headers)
@@ -191,6 +192,7 @@ class VirusShareHTMLParser(HTMLParser):
                     if status == 200:
                         zip_file.extractall(MALWARES_DIR, pwd=str.encode("infected"))
                         _store_ssdeep_hash("{}{}".format(MALWARES_DIR, zip_file.namelist()[0]))
+                        _logger.debug("Download {}".format(zip_file.namelist()[0]))
                     else:
                         raise Exception("Error during file downloading (status {}).".format(resp.status_code))
                 else:

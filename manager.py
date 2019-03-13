@@ -5,7 +5,7 @@ import os
 import config
 import sync
 import argparse
-
+import getpass
 
 def set_working_directory():
     """Set the working directory to the script's directory."""
@@ -26,15 +26,16 @@ if __name__ == "__main__":
     group.add_argument("-m", "--ml-only", action="store_true", help="Only perform machine learning.")
     group.add_argument("-s", "--sync-only", action="store_true", help="Only perform synchronisation.")
     parser.add_argument("-u", "--vs-user", default=None, help="Username used to connect to VirusShare.")
-    parser.add_argument("-p", "--vs-pass", default=None, help="Password used to perform the connection to VirusShare.")
 
     args = parser.parse_args()
 
-    if not args.ml_only and (args.vs_user is None or args.vs_pass is None):
+    if not args.ml_only and args.vs_user is None:
         parser.error("You forgot specify username or password to perform the connection to VirusShare for synchronization")
 
     config.set_logger(args.log_level)
 
+    vs_password = getpass.getpass("Password for virusshare.com : ")
+
     if not args.ml_only:
-        sync.all(args.vs_user, args.vs_pass)
-        #sync.git_push()
+        sync.all(args.vs_user, vs_password)
+        sync.git_push()

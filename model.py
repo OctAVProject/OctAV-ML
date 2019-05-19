@@ -13,10 +13,6 @@ from keras.layers.convolutional import Conv1D
 from keras.layers.convolutional import MaxPooling1D
 from keras.preprocessing.sequence import pad_sequences
 
-from hyperopt import Trials, STATUS_OK, tpe
-from hyperas import optim
-from hyperas.distributions import choice, uniform
-
 from contextlib import redirect_stdout
 
 import datetime

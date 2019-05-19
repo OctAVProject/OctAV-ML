@@ -1,12 +1,24 @@
 #!/bin/bash
 
-virtualenv -p python3 venv
+if [ ! -d "venv" ]; then
+    echo "Creating virtual environment..."
+    if ! virtualenv -p python3 venv &> setup.log; then
+        echo "Error: please install virtualenv."
+        exit 1
+    fi
+fi
 
 source venv/bin/activate
 
-pip3 install keras gitpython requests ssdeep hyperopt hyperas
+echo "Installing git requests ssdeep and tensorflow in virtual environment..."
 
-pip3 install tensorflow
-pip3 install tensorflow-gpu
+pip3 install keras gitpython requests ssdeep
+
+read -p "Do you have a gpu? [Y/N] " yn
+case $yn in
+    [Yy]* ) pip3 install tensorflow-gpu;;
+    [Nn]* ) pip3 install tensorflow;;
+    * ) echo "Please answer yes or no.";;
+esac
 
 deactivate

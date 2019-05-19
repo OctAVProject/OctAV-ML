@@ -4,6 +4,7 @@
 import os
 import config
 import sync
+import model
 import argparse
 import getpass
 
@@ -30,12 +31,23 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if not args.ml_only and args.vs_user is None:
-        parser.error("You forgot specify username or password to perform the connection to VirusShare for synchronization")
+        parser.error("You forgot specify username to perform the connection to VirusShare for synchronization")
 
     config.set_logger(args.log_level)
 
     vs_password = getpass.getpass("Password for virusshare.com : ")
 
-    if not args.ml_only:
+    if not args.ml_only and not args.sync_only:
+        print("\nSyncing\n")
         sync.all(args.vs_user, vs_password)
         sync.git_push()
+        print("Generating model")
+        model.create_and_save_model()
+    elif args.ml_only:
+        print("\nGenerating model\n")
+        model.create_and_save_model()
+    else:
+        print("\nSyncing\n")
+        sync.all(args.vs_user, vs_password)
+        sync.git_push()
+

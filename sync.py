@@ -1,5 +1,8 @@
 # coding: utf-8
 
+from git import Repo, Git
+from datetime import datetime
+
 import logging
 import requests
 import os
@@ -8,14 +11,11 @@ import io
 import zipfile
 import config
 import ssdeep
-from git import Repo
-from datetime import datetime
-from html.parser import HTMLParser
+
+import utils
 
 REPO_PATH = 'files/'
 MD5_HASHES_DIR = REPO_PATH + "md5_hashes/"
-SSDEEP_HASHES_DIR = REPO_PATH + "ssdeep_hashes/"
-IP_AND_DOMAINS_DIR = REPO_PATH + "malicious_domains_and_ips/"
 MALWARES_DIR = REPO_PATH + "malwares/"
 VIRUS_SHARE_BASE_URL = "https://virusshare.com/hashes/VirusShare_"
 MDL_URL = "http://www.malwaredomainlist.com/mdlcsv.php"
@@ -23,10 +23,7 @@ MD_DOMAIN_URl = "http://www.malware-domains.com/files/justdomains.zip"
 
 _logger = logging.getLogger(config.UPDATER_LOGGER_NAME)
 
-
-# TODO : REMOVE DUPLICATES WITHOUT OVERLOADING THE MEMORY. Bloom filter ?
 # TODO : Handle HTTP errors
-# TODO : Add SSH key auth to push on GitHub
 
 def all(userVS=None, passwordVS=None):
     _logger.info("Starting to sync everything...")
@@ -39,6 +36,9 @@ def all(userVS=None, passwordVS=None):
 
 def git_push():
     """Commit new downloaded files to `files` repository and push to remote."""
+
+    git_ssh_identity_file = os.path.expanduser('~/.ssh/git_octav')
+    git_ssh_cmd = 'ssh -i {}'.format(git_ssh_identity_file)
 
     repo = Repo(REPO_PATH)
 
@@ -55,8 +55,9 @@ def git_push():
     repo.index.commit("OctAV updated")
     _logger.debug("New commit : {}".format(repo.head.commit))
 
-    repo.remotes.origin.push()
-    _logger.info("Changes have been pushed to remote repo")
+    with Git().custom_environment(GIT_SSH_COMMAND=git_ssh_cmd):
+        repo.remotes.origin.push()
+        _logger.info("Changes have been pushed to remote repo")
 
     config.update("sync", "last_sync_date", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
@@ -77,20 +78,22 @@ def _md5_hashes():
 
         _logger.debug("Downloading {}".format(url))
         resp = requests.get(url)
+        status = resp.status_code
 
         # 404 code means we have reached the end of what we need to download
-        if resp.status_code == 404:
+        if status == 404:
             break
 
-        elif resp.status_code != 200:
-            raise Exception("Unusual error code ({}).".format(resp.status_code))
+        elif status != 200:
+            _logger.debug("Unusual error code ({})".format(status))
+            raise Exception("Unusual error code ({}).".format(status))
 
         content = re.sub(r'#.*\n?', '', resp.text, flags=re.MULTILINE)
 
         with open("{}{:05d}.md5".format(MD5_HASHES_DIR, file_number), "w") as hashes_file:
             hashes_file.write(content)
 
-        config.update("sync", "last_hashes_file_downloaded", file_number)
+        config.update("sync", "last_hashes_file_downloaded", file_number) 
 
 
 def _mdl_ips_and_domains():
@@ -98,19 +101,22 @@ def _mdl_ips_and_domains():
 
     _logger.info("Retrieving MDL IPs and domain names...")
 
-    if not os.path.isdir(IP_AND_DOMAINS_DIR):
-        os.makedirs(IP_AND_DOMAINS_DIR)
+    if not os.path.isdir(REPO_PATH):
+        os.makedirs(REPO_PATH)
 
-    if config.getbool("sync", "first_sync_done_from_mdl"):
+    if not config.getbool("sync", "first_sync_done_from_mdl"):
         _logger.debug("Downloading {}".format(MDL_URL))
         resp = requests.get(MDL_URL)
         status = resp.status_code
 
         if status != 200:
+            _logger.debug("Error during file download (status {}).".format(status))
             raise Exception("Error during file download (status {}).".format(status))
 
-        with open("{}listIpAndDomains.csv".format(IP_AND_DOMAINS_DIR), "a") as list_domains_fp:
+        with open("{}listIpAndDomains.csv".format(REPO_PATH), "w") as list_domains_fp:
             list_domains_fp.write(resp.text)
+
+        utils.sed_in_place(".*?,\"(.*?)\",\"(.*?)\",.*", r"\1,\2", "files/listIpAndDomains.csv")
 
         config.update("sync", "first_sync_done_from_mdl", True)
 
@@ -120,91 +126,20 @@ def _md_domains():
 
     _logger.info("Retrieving MD domain names...")
 
-    if not os.path.isdir(IP_AND_DOMAINS_DIR):
-        os.makedirs(IP_AND_DOMAINS_DIR)
+    if not os.path.isdir(REPO_PATH):
+        os.makedirs(REPO_PATH)
 
     _logger.debug("Downloading and extracting {}".format(MD_DOMAIN_URl))
 
     resp = requests.get(MD_DOMAIN_URl)
+    status = resp.status_code
 
-    if resp.status_code != 200:
+    if status != 200:
+        _logger.debug("Error during file download (status {}).".format(status))
         raise Exception("Error during file download (status {}).".format(resp.status_code))
 
     zip_file = zipfile.ZipFile(io.BytesIO(resp.content))
-    zip_file.extractall(IP_AND_DOMAINS_DIR)
-
-
-def _store_ssdeep_hash(path):
-    """Calculate ssdeep for file at path and store it in ssdeep file."""
-
-    if not os.path.isdir(SSDEEP_HASHES_DIR):
-        os.makedirs(SSDEEP_HASHES_DIR)
-
-    if not os.path.isfile("{}ssdeep.txt".format(SSDEEP_HASHES_DIR)):
-        file = open("{}ssdeep.txt".format(SSDEEP_HASHES_DIR), "w")
-        file.close()
-
-    ssdeep_hash = ssdeep.hash_from_file(path)
-    with open("{}ssdeep.txt".format(SSDEEP_HASHES_DIR), "r+") as ssdeep_file:
-        lines = ssdeep_file.readlines()
-        if ssdeep_hash not in lines:
-            ssdeep_file.write("{}\n".format(ssdeep_hash))
-
-
-class VirusShareHTMLParser(HTMLParser):
-
-    def __init__(self, headers):
-        HTMLParser.__init__(self)
-        self.headers = headers
-        self.in_table = False
-        self.in_a = False
-        self.date_in_next = False
-        self.out_of_a = False
-        self.dl_url = ""
-        self.stop = False
-        self.ignore = False
-
-    def handle_starttag(self, tag, attrs):
-        if tag == "table":
-            self.in_table = True
-        elif tag == "a" and self.in_table and not self.dl_url:
-            end_of_url = attrs[0][1]
-            self.dl_url = "https://virusshare.com/{}".format(end_of_url)
-            if end_of_url.split("=")[1] in os.listdir(MALWARES_DIR):
-                self.ignore = True
-
-    def handle_endtag(self, tag):
-        if tag == "table":
-            self.in_table = False
-
-    def handle_data(self, data):
-        if "VirusShare info last updated" in data and not self.stop:
-            date = data.split("updated ")[1]
-            date = date.split(" UTC")[0]
-            date_t = datetime.strptime(date, "%Y-%m-%d %H:%M:%S")
-            date_base = config.getstr("sync", "last_sync_date")
-            date_base = datetime.strptime(date_base, "%Y-%m-%d %H:%M:%S")
-            if not self.ignore:
-                if date_base < date_t:
-                    resp = requests.get(self.dl_url, headers=self.headers)
-                    zip_file = zipfile.ZipFile(io.BytesIO(resp.content))
-                    status = resp.status_code
-                    if status == 200:
-                        zip_file.extractall(MALWARES_DIR, pwd=str.encode("infected"))
-                        _store_ssdeep_hash("{}{}".format(MALWARES_DIR, zip_file.namelist()[0]))
-                        _logger.debug("Download {}".format(zip_file.namelist()[0]))
-                    else:
-                        raise Exception("Error during file downloading (status {}).".format(resp.status_code))
-                else:
-                    _logger.debug("Stopping...")
-                    self.stop = True
-            else:
-                _logger.debug("Ignored, already downloaded")
-                self.ignore = False
-
-            self.out_of_a = False
-            self.dl_url = ""
-            self.date_in_next = False
+    zip_file.extractall(REPO_PATH)
 
 
 def _download_virus_from_virusshare(user, password):
@@ -223,7 +158,7 @@ def _download_virus_from_virusshare(user, password):
         respAuth = requests.post('https://virusshare.com/processlogin.4n6', data = {"username":"{}".format(user), "password":"{}".format(password)}, headers=headers)
         if "NO BOTS! NO SCRAPERS!" not in respAuth.text:
             start = 0
-            parser = VirusShareHTMLParser(headers)
+            parser = utils.VirusShareHTMLParser(headers)
 
             while not parser.stop:
                 resp = requests.post('https://virusshare.com/search.4n6', data = {'search':'linux', 'start':'{}'.format(start)}, headers=headers)

@@ -2,11 +2,12 @@
 # coding: utf-8
 
 import os
-import config
-import sync
-import model
 import argparse
 import getpass
+
+import py.config as config
+import py.sync as sync
+import py.model as model
 
 def set_working_directory():
     """Set the working directory to the script's directory."""
@@ -43,9 +44,13 @@ if __name__ == "__main__":
         sync.git_push()
         print("Generating model")
         model.create_and_save_model()
+        print("Testing model")
+        model.check_model()
     elif args.ml_only:
         print("\nGenerating model\n")
         model.create_and_save_model()
+        print("Testing model")
+        model.check_model()
     else:
         print("\nSyncing\n")
         sync.all(args.vs_user, vs_password)

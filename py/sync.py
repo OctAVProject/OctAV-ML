@@ -9,17 +9,9 @@ import os
 import re
 import io
 import zipfile
-import config
-import ssdeep
 
-import utils
-
-REPO_PATH = 'files/'
-MD5_HASHES_DIR = REPO_PATH + "md5_hashes/"
-MALWARES_DIR = REPO_PATH + "malwares/"
-VIRUS_SHARE_BASE_URL = "https://virusshare.com/hashes/VirusShare_"
-MDL_URL = "http://www.malwaredomainlist.com/mdlcsv.php"
-MD_DOMAIN_URl = "http://www.malware-domains.com/files/justdomains.zip"
+import py.config as config
+import py.utils as utils
 
 _logger = logging.getLogger(config.UPDATER_LOGGER_NAME)
 
@@ -40,7 +32,7 @@ def git_push():
     git_ssh_identity_file = os.path.expanduser('~/.ssh/git_octav')
     git_ssh_cmd = 'ssh -i {}'.format(git_ssh_identity_file)
 
-    repo = Repo(REPO_PATH)
+    repo = Repo(config.REPOFILES_PATH)
 
     _logger.debug("Current commit : {}".format(repo.head.commit))
     files_to_add = [item.a_path for item in repo.index.diff(None)] + repo.untracked_files
@@ -67,14 +59,14 @@ def _md5_hashes():
 
     _logger.info("Retrieving MD5 hashes...")
 
-    if not os.path.isdir(MD5_HASHES_DIR):
-        os.makedirs(MD5_HASHES_DIR)
+    if not os.path.isdir(config.MD5_HASHES_DIR):
+        os.makedirs(config.MD5_HASHES_DIR)
 
     file_number = config.getint("sync", "last_hashes_file_downloaded")
 
     while "status code is 200":
         file_number += 1
-        url = "{}{:05d}.md5".format(VIRUS_SHARE_BASE_URL, file_number)
+        url = "{}{:05d}.md5".format(config.VIRUS_SHARE_BASE_URL, file_number)
 
         _logger.debug("Downloading {}".format(url))
         resp = requests.get(url)
@@ -90,7 +82,7 @@ def _md5_hashes():
 
         content = re.sub(r'#.*\n?', '', resp.text, flags=re.MULTILINE)
 
-        with open("{}{:05d}.md5".format(MD5_HASHES_DIR, file_number), "w") as hashes_file:
+        with open("{}{:05d}.md5".format(config.MD5_HASHES_DIR, file_number), "w") as hashes_file:
             hashes_file.write(content)
 
         config.update("sync", "last_hashes_file_downloaded", file_number) 
@@ -101,19 +93,19 @@ def _mdl_ips_and_domains():
 
     _logger.info("Retrieving MDL IPs and domain names...")
 
-    if not os.path.isdir(REPO_PATH):
-        os.makedirs(REPO_PATH)
+    if not os.path.isdir(config.REPOFILES_PATH):
+        os.makedirs(config.REPOFILES_PATH)
 
     if not config.getbool("sync", "first_sync_done_from_mdl"):
-        _logger.debug("Downloading {}".format(MDL_URL))
-        resp = requests.get(MDL_URL)
+        _logger.debug("Downloading {}".format(config.MDL_URL))
+        resp = requests.get(config.MDL_URL)
         status = resp.status_code
 
         if status != 200:
             _logger.debug("Error during file download (status {}).".format(status))
             raise Exception("Error during file download (status {}).".format(status))
 
-        with open("{}listIpAndDomains.csv".format(REPO_PATH), "w") as list_domains_fp:
+        with open("{}listIpAndDomains.csv".format(config.REPOFILES_PATH), "w") as list_domains_fp:
             list_domains_fp.write(resp.text)
 
         utils.sed_in_place(".*?,\"(.*?)\",\"(.*?)\",.*", r"\1,\2", "files/listIpAndDomains.csv")
@@ -126,12 +118,12 @@ def _md_domains():
 
     _logger.info("Retrieving MD domain names...")
 
-    if not os.path.isdir(REPO_PATH):
-        os.makedirs(REPO_PATH)
+    if not os.path.isdir(config.REPOFILES_PATH):
+        os.makedirs(config.REPOFILES_PATH)
 
-    _logger.debug("Downloading and extracting {}".format(MD_DOMAIN_URl))
+    _logger.debug("Downloading and extracting {}".format(config.MD_DOMAIN_URl))
 
-    resp = requests.get(MD_DOMAIN_URl)
+    resp = requests.get(config.MD_DOMAIN_URl)
     status = resp.status_code
 
     if status != 200:
@@ -139,7 +131,7 @@ def _md_domains():
         raise Exception("Error during file download (status {}).".format(resp.status_code))
 
     zip_file = zipfile.ZipFile(io.BytesIO(resp.content))
-    zip_file.extractall(REPO_PATH)
+    zip_file.extractall(config.REPOFILES_PATH)
 
 
 def _download_virus_from_virusshare(user, password):
@@ -147,8 +139,8 @@ def _download_virus_from_virusshare(user, password):
 
     _logger.info("Retrieving malwares...")
 
-    if not os.path.isdir(MALWARES_DIR):
-        os.makedirs(MALWARES_DIR)
+    if not os.path.isdir(config.MALWARES_DIR):
+        os.makedirs(config.MALWARES_DIR)
 
     respGetVS = requests.get('https://virusshare.com')
     if respGetVS.status_code == 200:

@@ -134,7 +134,7 @@ def create_and_save_model():
     model = _create_model(X_train, Y_train, X_valid, Y_valid)
 
     # Save model to be used with Go
-    builder = tf.saved_model.builder.SavedModelBuilder("OctavToGo_{}".format(dt.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")))  
+    builder = tf.saved_model.builder.SavedModelBuilder("{}OctavToGo_{}".format(config.REPOFILES_PATH, dt.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")))  
     builder.add_meta_graph_and_variables(sess, ["Octav_{}".format(config.MAX_SYSCALL_NUM)])  
     builder.save() 
 

@@ -14,6 +14,8 @@ import tensorflow as tf
 import logging
 import datetime
 import os
+import numpy as np
+import datetime as dt
 
 import py.config as config
 import py.utils as utils
@@ -31,9 +33,9 @@ def _create_model(X_train, Y_train, X_valid, Y_valid):
     model.add(Dense(1, activation='sigmoid'))
     model.compile(loss='binary_crossentropy', optimizer='adagrad', metrics=['accuracy'])
 
-    result = model.fit(X_train, Y_train, epochs=10, batch_size=64)
+    result = model.fit(X_train, Y_train, epochs=config.NUM_EPOCHS, batch_size=config.BATCH_SIZE)
 
-    score, acc = model.evaluate(X_valid, Y_valid, batch_size=64)
+    score, acc = model.evaluate(X_valid, Y_valid, batch_size=config.BATCH_SIZE)
 
     _logger.info("\nTest accuracy : {}".format(acc))
     _logger.info("Test score : {}".format(score))  
@@ -116,6 +118,8 @@ def _calculate_performance_figures(confusion_table):
     _logger.info("Accuracy : {}".format(acc))
     _logger.info("Score : {}".format(score))
 
+    return acc
+
 
 def create_and_save_model():
     """Create and save the model used by Octav dynamic analysis."""
@@ -129,17 +133,24 @@ def create_and_save_model():
 
     model = _create_model(X_train, Y_train, X_valid, Y_valid)
 
-    builder = tf.saved_model.builder.SavedModelBuilder("OctavToGo")  
-    # Tag the model, required for Go
-    builder.add_meta_graph_and_variables(sess, ["Octav_32"])  
+    # Save model to be used with Go
+    builder = tf.saved_model.builder.SavedModelBuilder("OctavToGo_{}".format(dt.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")))  
+    builder.add_meta_graph_and_variables(sess, ["Octav_{}".format(config.MAX_SYSCALL_NUM)])  
     builder.save() 
+
+    # Save model to be reused with python
+    model_json = model.to_json()
+    with open("{}octav_model_{}.json".format(config.REPOFILES_PATH, config.MAX_SYSCALL_NUM), "w") as json_file:
+        json_file.write(model_json)
+    model.save_weights("{}octav_model_{}.hdf5".format(config.REPOFILES_PATH, config.MAX_SYSCALL_NUM))
+    _logger.info("Model saved")
 
     return model
 
 
 def check_model(X_check, Y_check, model, threshold=0.5):
-    predictions = model.predict(X_check, batch_size=64, verbose=1)
+    predictions = model.predict(X_check, batch_size=config.BATCH_SIZE, verbose=1)
 
     labels = _classify(predictions, Y_check, threshold)
     confusion_table = _build_confusion_table(labels, Y_check)
-    _calculate_performance_figures(confusion_table)
+    return _calculate_performance_figures(confusion_table)

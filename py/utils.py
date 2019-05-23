@@ -14,6 +14,8 @@ import os
 import logging
 import ssdeep
 import numpy as np
+import json
+import collections
 
 import py.config as config
 from py.syscalls import SYSCALLS
@@ -21,12 +23,38 @@ from py.syscalls import SYSCALLS
 _logger_up = logging.getLogger(config.UPDATER_LOGGER_NAME)
 _logger_tf = logging.getLogger(config.TENSORFLOW_LOGGER_NAME)
 
-def _load_report(filepath, regex=r"\.*?api.: .([a-z_0-9]+)"):
+def _load_json_report(filepath):
+    syscall_seq = []
+
+    with open(filepath, "r") as f:
+        json_content = json.load(f)
+        syscalls = {}
+        if "behavior" in json_content and "processes" in json_content["behavior"]:
+            for process in json_content["behavior"]["processes"]:
+                if "calls" in process:
+                    for call in process["calls"]:
+                        if "api" in call and "time" in call:
+                            if call["api"] in SYSCALLS:
+                                syscall_num = SYSCALLS[call["api"]]
+                                if syscall_num < config.MAX_SYSCALL_NUM:
+                                    syscalls[call["time"]] = syscall_num
+
+    syscall_seq_dict = collections.OrderedDict(sorted(syscalls.items()))
+    for syscall in syscall_seq_dict:
+        syscall_seq.append(syscall_seq_dict[syscall])
+
+    one_hot_encoded = np.eye(config.MAX_SYSCALL_NUM)[syscall_seq]
+    seq = np.concatenate((one_hot_encoded, np.zeros((1, config.MAX_SYSCALL_NUM))))
+
+    return seq
+
+
+def _load_strace_report(filepath):
     syscall_seq = []
 
     with open(filepath, "r") as f:
         content = f.read()
-        for m in re.finditer(regex, content):
+        for m in re.finditer(r"([a-z_0-9]+)\(", content):
             syscall = m.group(1)
             if syscall in SYSCALLS:
                 syscall_num = SYSCALLS[syscall]
@@ -50,9 +78,9 @@ def load_train_dataset():
                 _logger_tf.debug("Loading {}".format(filepath))
 
                 if file.endswith(".strace"):
-                    seq = _load_report(filepath, r"([a-z_0-9]+)\(")
+                    seq = _load_strace_report(filepath)
                 else:
-                    seq = _load_report(filepath)
+                    seq = _load_json_report(filepath)
 
                 seqs.append(seq)
                 targs.append(0)
@@ -64,9 +92,9 @@ def load_train_dataset():
                 _logger_tf.debug("Loading {}".format(filepath))
 
                 if file.endswith(".strace"):
-                    seq = _load_report(filepath, r"([a-z_0-9]+)\(")
+                    seq = _load_strace_report(filepath)
                 else:
-                    seq = _load_report(filepath)
+                    seq = _load_json_report(filepath)
 
                 seqs.append(seq)
                 targs.append(1)
@@ -102,9 +130,9 @@ def load_check_dataset():
                 _logger_tf.debug("Loading {}".format(filepath))
 
                 if file.endswith(".strace"):
-                    seq = _load_report(filepath, r"([a-z_0-9]+)\(")
+                    seq = _load_strace_report(filepath)
                 else:
-                    seq = _load_report(filepath)
+                    seq = _load_json_report(filepath)
 
                 seqs.append(seq)
                 targs.append(0)
@@ -116,9 +144,9 @@ def load_check_dataset():
                 _logger_tf.debug("Loading {}".format(filepath))
 
                 if file.endswith(".strace"):
-                    seq = _load_report(filepath, r"([a-z_0-9]+)\(")
+                    seq = _load_strace_report(filepath)
                 else:
-                    seq = _load_report(filepath)
+                    seq = _load_json_report(filepath)
                 seq_len = seq.shape[0]
 
                 seqs.append(seq)

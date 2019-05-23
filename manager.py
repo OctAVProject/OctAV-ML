@@ -51,20 +51,20 @@ if __name__ == "__main__":
 
         print("\nTesting model")
         X_check, Y_check = utils.load_check_dataset()
-        thresholds = [0]*100
-        for threshold in numpy.arange(0, 1, 0.01):
-            TPR = model.check_model(X_check, Y_check, octav_model, threshold)
-            thresholds[threshold] = TPR
-        logging.getLogger(config.TENSORFLOW_LOGGER_NAME).info(thresholds.index(numpy.amax(thresholds)))
+        thresholds = [0]*config.NUM_TEST_THRESHOLDS
+        for threshold in numpy.arange(0, 1, 1/config.NUM_TEST_THRESHOLDS):
+            thresholds[threshold*config.NUM_TEST_THRESHOLDS] = model.check_model(X_check, Y_check, octav_model, threshold)
+        logging.getLogger(config.TENSORFLOW_LOGGER_NAME).info("\nBest threshold : {}".format(thresholds.index(numpy.amax(thresholds)) / config.NUM_TEST_THRESHOLDS))
     elif args.ml_only:        
         print("\nGenerating model\n")
         octav_model = model.create_and_save_model()
 
         print("\nTesting model")
         X_check, Y_check = utils.load_check_dataset()
-        for threshold in numpy.arange(0, 1, 0.01):
-            model.check_model(X_check, Y_check, octav_model, threshold)
-        logging.getLogger(config.TENSORFLOW_LOGGER_NAME).info(thresholds.index(numpy.amax(thresholds)))
+        thresholds = [0]*config.NUM_TEST_THRESHOLDS
+        for threshold in numpy.arange(0, 1, 1/config.NUM_TEST_THRESHOLDS):
+            thresholds[int(threshold*config.NUM_TEST_THRESHOLDS)] = model.check_model(X_check, Y_check, octav_model, threshold)
+        logging.getLogger(config.TENSORFLOW_LOGGER_NAME).info("\nBest threshold : {}".format(thresholds.index(numpy.amax(thresholds)) / config.NUM_TEST_THRESHOLDS))
     else:
         print("\nSyncing\n")
         sync.all(args.vs_user, vs_password)

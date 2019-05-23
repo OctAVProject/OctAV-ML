@@ -1,24 +1,19 @@
 # coding: utf-8
 
-from keras.models import model_from_json
 from keras.models import Sequential
 from keras.layers import Dense
 from keras.layers import GRU
 from keras.layers import BatchNormalization
 from keras.layers.convolutional import Conv1D
 from keras.layers.convolutional import MaxPooling1D
-from keras.preprocessing.sequence import pad_sequences
+from keras import backend as K
 
 from contextlib import redirect_stdout
 
+import tensorflow as tf
 import logging
 import datetime
-import numpy as np
-import argparse
-import pickle
-import re
 import os
-import json
 
 import py.config as config
 import py.utils as utils
@@ -46,11 +41,11 @@ def _create_model(X_train, Y_train, X_valid, Y_valid):
     return model
 
 
-def _classify(predictions, Y_check):
+def _classify(predictions, Y_check, threshold):
     labels = []
 
     for index in range(len(Y_check)):
-        if predictions[index] > 0.5:
+        if predictions[index] > threshold:
             labels.append(1)
         else:
             labels.append(0)
@@ -124,6 +119,8 @@ def _calculate_performance_figures(confusion_table):
 
 def create_and_save_model():
     """Create and save the model used by Octav dynamic analysis."""
+    sess = tf.Session() 
+    K.set_session(sess) 
 
     if not os.path.isdir(config.REPOFILES_PATH):
         os.makedirs(config.REPOFILES_PATH)
@@ -131,25 +128,18 @@ def create_and_save_model():
     (X_train, Y_train), (X_valid, Y_valid) = utils.load_train_dataset()
 
     model = _create_model(X_train, Y_train, X_valid, Y_valid)
-    with open("{}octav_model.json".format(config.REPOFILES_PATH), "w") as model_file:
-        model_file.write(model.to_json())
-    model.save_weights("{}octav_model.hdf5".format(config.REPOFILES_PATH))
-    print("Model saved")
+
+    builder = tf.saved_model.builder.SavedModelBuilder("OctavToGo")  
+    # Tag the model, required for Go
+    builder.add_meta_graph_and_variables(sess, ["Octav_32"])  
+    builder.save() 
+
+    return model
 
 
-def check_model():
-    with open("{}octav_model.json".format(config.REPOFILES_PATH), "r") as model_file:
-        model_json = model_file.read()
-        model = model_from_json(model_json)
-    model.load_weights("{}octav_model.hdf5".format(config.REPOFILES_PATH))
-
-    _logger.info("Model loaded")
-    model.compile(loss='binary_crossentropy', optimizer='adagrad', metrics=['accuracy'])
-
-    X_check, Y_check = load_check_dataset()
-
+def check_model(X_check, Y_check, model, threshold=0.5):
     predictions = model.predict(X_check, batch_size=64, verbose=1)
 
-    labels = _classify(predictions, Y_check)
+    labels = _classify(predictions, Y_check, threshold)
     confusion_table = _build_confusion_table(labels, Y_check)
     _calculate_performance_figures(confusion_table)

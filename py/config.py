@@ -22,9 +22,6 @@ VIRUS_SHARE_BASE_URL = "https://virusshare.com/hashes/VirusShare_"
 MDL_URL = "http://www.malwaredomainlist.com/mdlcsv.php"
 MD_DOMAIN_URl = "http://www.malware-domains.com/files/justdomains.zip"
 
-MAX_SYSCALL_NUM=32
-VALIDATION=0.
-
 _updater_logger = logging.getLogger(UPDATER_LOGGER_NAME)
 _tensorflow_logger = logging.getLogger(TENSORFLOW_LOGGER_NAME)
 
@@ -39,6 +36,8 @@ getbool = _config.getboolean
 
 _config_lock = threading.Lock()
 
+MAX_SYSCALL_NUM = getint("machine_learning", "max_syscall_num")
+VALIDATION = getfloat("machine_learning", "validation_rate")
 
 def set_logger(level=logging.INFO):
     if not os.path.isdir(LOG_DIR):

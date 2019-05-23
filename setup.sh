@@ -1,4 +1,7 @@
 #!/bin/bash
+set -e
+
+cd "$(dirname "$0")"  # Set working directory to script's directory
 
 if ! [ -d "files" ];then
     echo "Cloning OctAV-Files repository"
@@ -24,9 +27,9 @@ pip3 install keras gitpython requests ssdeep &>> logs/setup.log
 
 read -p "Do you have a gpu? [Y/N] " yn
 case $yn in
-    [Yy]* ) read -p "You need to install CUDA to work with tensorflow with a GPU, do you have it ? [Y/N] " yn
+    [Yy]* ) read -p "You need to install CUDA_9 to work with tensorflow with a GPU, do you have it ? [Y/N] " yn
             case $yn in
-                 [Yy]*) pip3 install tensorflow-gpu &>> logs/setup.log;;
+                 [Yy]*) pip3 install tensorflow-gpu==1.9.0 &>> logs/setup.log;;
                  [Nn]*) exit 1;;
             esac;;
     [Nn]* ) pip3 install tensorflow &>> logs/setup.log;;
@@ -35,7 +38,7 @@ esac
 
 deactivate
 
-echo "\nNow all you have to do to use the manager is to join the virtual environment :"
+echo -e "\nNow all you have to do to use the manager is to join the virtual environment :"
 echo -e ". venv/bin/activate\n"
 
 echo "Run the manager :"

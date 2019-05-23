@@ -3,6 +3,7 @@
 from tempfile import mkstemp
 from html.parser import HTMLParser
 from datetime import datetime
+from keras.preprocessing.sequence import pad_sequences
 
 import re
 import shutil
@@ -12,6 +13,7 @@ import requests
 import os
 import logging
 import ssdeep
+import numpy as np
 
 import py.config as config
 from py.syscalls import SYSCALLS
@@ -28,11 +30,11 @@ def _load_report(filepath, regex=r"\.*?api.: .([a-z_0-9]+)"):
             syscall = m.group(1)
             if syscall in SYSCALLS:
                 syscall_num = SYSCALLS[syscall]
-                if syscall_num < MAX_SYSCALL_NUM:
+                if syscall_num < config.MAX_SYSCALL_NUM:
                     syscall_seq.append(syscall_num)
 
-    one_hot_encoded = np.eye(MAX_SYSCALL_NUM)[syscall_seq]
-    seq = np.concatenate((one_hot_encoded, np.zeros((1, MAX_SYSCALL_NUM))))
+    one_hot_encoded = np.eye(config.MAX_SYSCALL_NUM)[syscall_seq]
+    seq = np.concatenate((one_hot_encoded, np.zeros((1, config.MAX_SYSCALL_NUM))))
 
     return seq
 
@@ -73,7 +75,7 @@ def load_train_dataset():
     indices = np.arange(len(seqs))
     np.random.shuffle(indices)
 
-    split_index = int(len(seqs) * VALIDATION)
+    split_index = int(len(seqs) * config.VALIDATION)
 
     train_indices = indices[split_index:]
     valid_indices = indices[:split_index]
@@ -107,7 +109,7 @@ def load_check_dataset():
                 seqs.append(seq)
                 targs.append(0)
 
-    for subdirs, dirs, files in os.walk("{}dataset_check/malwares".format(config.DATASETS_DIR)):
+    for subdir, dirs, files in os.walk("{}dataset_check/malwares".format(config.DATASETS_DIR)):
         for file in files:
             if file.endswith(".strace") or file.endswith(".json"):
                 filepath = os.path.join(subdir, file)                

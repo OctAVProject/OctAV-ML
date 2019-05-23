@@ -4,10 +4,13 @@
 import os
 import argparse
 import getpass
+import numpy
+import logging
 
 import py.config as config
 import py.sync as sync
 import py.model as model
+import py.utils as utils
 
 def set_working_directory():
     """Set the working directory to the script's directory."""
@@ -36,21 +39,32 @@ if __name__ == "__main__":
 
     config.set_logger(args.log_level)
 
-    vs_password = getpass.getpass("Password for virusshare.com : ")
+    if not args.ml_only:
+        vs_password = getpass.getpass("Password for virusshare.com : ")
 
     if not args.ml_only and not args.sync_only:
         print("\nSyncing\n")
         sync.all(args.vs_user, vs_password)
         sync.git_push()
-        print("Generating model")
-        model.create_and_save_model()
-        print("Testing model")
-        model.check_model()
-    elif args.ml_only:
+        print("\nGenerating model")
+        octav_model = model.create_and_save_model()
+
+        print("\nTesting model")
+        X_check, Y_check = utils.load_check_dataset()
+        thresholds = [0]*100
+        for threshold in numpy.arange(0, 1, 0.01):
+            TPR = model.check_model(X_check, Y_check, octav_model, threshold)
+            thresholds[threshold] = TPR
+        logging.getLogger(config.TENSORFLOW_LOGGER_NAME).info(thresholds.index(numpy.amax(thresholds)))
+    elif args.ml_only:        
         print("\nGenerating model\n")
-        model.create_and_save_model()
-        print("Testing model")
-        model.check_model()
+        octav_model = model.create_and_save_model()
+
+        print("\nTesting model")
+        X_check, Y_check = utils.load_check_dataset()
+        for threshold in numpy.arange(0, 1, 0.01):
+            model.check_model(X_check, Y_check, octav_model, threshold)
+        logging.getLogger(config.TENSORFLOW_LOGGER_NAME).info(thresholds.index(numpy.amax(thresholds)))
     else:
         print("\nSyncing\n")
         sync.all(args.vs_user, vs_password)

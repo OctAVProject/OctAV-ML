@@ -2,6 +2,7 @@
 
 import os
 from argparse import ArgumentParser
+import pickle
 
 from manager.config import set_logger
 from manager.sync import all, git_push

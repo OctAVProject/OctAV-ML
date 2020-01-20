@@ -36,12 +36,6 @@ getbool = _config.getboolean
 
 _config_lock = threading.Lock()
 
-MAX_SYSCALL_NUM = getint("machine_learning", "max_syscall_num")
-VALIDATION = getfloat("machine_learning", "validation_rate")
-BATCH_SIZE = getint("machine_learning", "batch_size")
-NUM_EPOCHS = getint("machine_learning", "num_epochs")
-NUM_TEST_THRESHOLDS = getint("machine_learning", "num_test_thresholds")
-
 def set_logger(level=logging.INFO):
     if not os.path.isdir(LOG_DIR):
         os.mkdir(LOG_DIR)

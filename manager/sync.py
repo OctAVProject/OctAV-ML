@@ -1,6 +1,6 @@
 # coding: utf-8
 
-from git import Repo, Git
+from git import Repo
 from datetime import datetime
 
 import logging
@@ -10,12 +10,10 @@ import re
 import io
 import zipfile
 
-import model.config as config
-import model.utils as utils
+import manager.config as config
+import manager.utils as utils
 
 _logger = logging.getLogger(config.UPDATER_LOGGER_NAME)
-
-# TODO : Handle HTTP errors
 
 def all():
     _logger.info("Starting to sync everything...")

@@ -2,12 +2,9 @@
 
 from contextlib import redirect_stdout
 
-import tensorflow as tf
 import pandas as pd
 import logging
-import datetime
 import os
-import numpy as np
 import pickle
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -15,8 +12,7 @@ import seaborn as sns
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import confusion_matrix, roc_curve, roc_auc_score
 
-import model.config as config
-import model.utils as utils
+import manager.config as config
 
 _logger = logging.getLogger(config.TENSORFLOW_LOGGER_NAME)
 

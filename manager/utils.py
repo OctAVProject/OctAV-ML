@@ -1,25 +1,16 @@
 # coding: utf-8
 
 from tempfile import mkstemp
-from html.parser import HTMLParser
-from datetime import datetime
 from keras.preprocessing.sequence import pad_sequences
 
 import re
 import shutil
-import zipfile
-import io
-import requests
-import os
 import logging
-import ssdeep
 import numpy as np
-import json
-import collections
 import csv
 
-import model.config as config
-from model.syscalls import SYSCALLS
+import manager.config as config
+from manager.syscalls import SYSCALLS
 
 _logger_up = logging.getLogger(config.UPDATER_LOGGER_NAME)
 _logger_tf = logging.getLogger(config.TENSORFLOW_LOGGER_NAME)

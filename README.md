@@ -48,9 +48,9 @@ Public lists synchronization
 
 ```
 $ python -m manager --help
-usage: manager.py [-h] [-l {DEBUG,INFO,WARNING,ERROR}] [-m | -c | -s]
+usage: python -m manager [-h] [-l {DEBUG,INFO,WARNING,ERROR}] [-m | -c | -s]
 
-OctAV Manager : in charge of updating the repository periodically and 
+OctAV Manager : in charge of updating the repository periodically and of
 performing machine learning.
 
 optional arguments:

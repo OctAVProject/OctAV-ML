@@ -1,5 +1,8 @@
 # Project specific
 logs/
+model_assessment/*
+files
+dataset.csv
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

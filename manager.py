@@ -6,11 +6,12 @@ import argparse
 import getpass
 import numpy
 import logging
+import pickle
 
-import py.config as config
-import py.sync as sync
-import py.model as model
-import py.utils as utils
+import model.config as config
+import model.sync as sync
+import model.model as model
+import model.utils as utils
 
 def set_working_directory():
     """Set the working directory to the script's directory."""
@@ -29,44 +30,55 @@ if __name__ == "__main__":
                         default="INFO", help="Set the log level")
     group = parser.add_mutually_exclusive_group()
     group.add_argument("-m", "--ml-only", action="store_true", help="Only perform machine learning.")
+    group.add_argument("-c", "--check_model", action="store_true", help="Only assess model.")
     group.add_argument("-s", "--sync-only", action="store_true", help="Only perform synchronisation.")
-    parser.add_argument("-u", "--vs-user", default=None, help="Username used to connect to VirusShare.")
 
     args = parser.parse_args()
 
-    if not args.ml_only and args.vs_user is None:
-        parser.error("You forgot specify username to perform the connection to VirusShare for synchronization")
-
     config.set_logger(args.log_level)
 
-    if not args.ml_only:
-        vs_password = getpass.getpass("Password for virusshare.com : ")
+    if not args.ml_only and not args.sync_only and not args.check_model:
+        sync.all()
 
-    if not args.ml_only and not args.sync_only:
-        print("\nSyncing\n")
-        sync.all(args.vs_user, vs_password)
+        DATASET_PATH = "dataset.csv"
+        legitimates_syscall, malwares_syscall, max_seq_length = utils.generate_dataset(DATASET_PATH)
+        (X_train, Y_train) , (X_check, Y_check), (X_test, Y_test) = utils.split_dataset(legitimates_syscall, malwares_syscall)
+        
+        X_train, X_check, X_test = model.data_processing(X_train, Y_train, X_check, Y_check, X_test, Y_test)
+        
+        octav_model = model.create_and_save_model(X_train, Y_train, max_seq_length)
+
+        model.check_model(X_train, Y_train, X_check, Y_check, X_test, Y_test, octav_model)
+
         sync.git_push()
-        print("\nGenerating model")
-        octav_model = model.create_and_save_model()
+    elif args.ml_only:
+        
+        DATASET_PATH = "dataset.csv"
+        legitimates_syscall, malwares_syscall, max_seq_length = utils.generate_dataset(DATASET_PATH)
+        (X_train, Y_train) , (X_check, Y_check), (X_test, Y_test) = utils.split_dataset(legitimates_syscall, malwares_syscall)
+        
+        X_train, X_check, X_test = model.data_processing(X_train, Y_train, X_check, Y_check, X_test, Y_test)
+        
+        octav_model = model.create_and_save_model(X_train, Y_train, max_seq_length)
 
-        print("\nTesting model")
-        X_check, Y_check = utils.load_check_dataset()
-        thresholds = [0]*config.NUM_TEST_THRESHOLDS
-        for threshold in numpy.arange(0, 1, 1/config.NUM_TEST_THRESHOLDS):
-            thresholds[threshold*config.NUM_TEST_THRESHOLDS] = model.check_model(X_check, Y_check, octav_model, threshold)
-        logging.getLogger(config.TENSORFLOW_LOGGER_NAME).info("\nBest threshold : {}".format(thresholds.index(numpy.amax(thresholds)) / config.NUM_TEST_THRESHOLDS))
-    elif args.ml_only:        
-        print("\nGenerating model\n")
-        octav_model = model.create_and_save_model()
+        model.check_model(X_train, Y_train, X_check, Y_check, X_test, Y_test, octav_model)
+    elif args.check_model:
+        
+        DATASET_PATH = "dataset.csv"
+        legitimates_syscall, malwares_syscall, max_seq_length = utils.generate_dataset(DATASET_PATH)
+        (X_train, Y_train) , (X_check, Y_check), (X_test, Y_test) = utils.split_dataset(legitimates_syscall, malwares_syscall)
+        
+        X_train, X_check, X_test = model.data_processing(X_train, Y_train, X_check, Y_check, X_test, Y_test)
+        
+        model_file_path = "files/"
+        for filename in os.listdir(model_file_path):
+            if filename.startswith('random_forest_model'):
+                model_file_path += filename
+        
+        octav_model = pickle.load(open(model_file_path, 'rb'))
 
-        print("\nTesting model")
-        X_check, Y_check = utils.load_check_dataset()
-        thresholds = [0]*config.NUM_TEST_THRESHOLDS
-        for threshold in numpy.arange(0, 1, 1/config.NUM_TEST_THRESHOLDS):
-            thresholds[int(threshold*config.NUM_TEST_THRESHOLDS)] = model.check_model(X_check, Y_check, octav_model, threshold)
-        logging.getLogger(config.TENSORFLOW_LOGGER_NAME).info("\nBest threshold : {}".format(thresholds.index(numpy.amax(thresholds)) / config.NUM_TEST_THRESHOLDS))
+        model.check_model(X_train, Y_train, X_check, Y_check, X_test, Y_test, octav_model)
     else:
-        print("\nSyncing\n")
-        sync.all(args.vs_user, vs_password)
+        sync.all()
         sync.git_push()
 

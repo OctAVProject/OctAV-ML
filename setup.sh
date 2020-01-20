@@ -23,7 +23,7 @@ source venv/bin/activate
 
 echo "Installing git requests ssdeep and tensorflow in virtual environment..."
 
-pip3 install keras gitpython requests ssdeep &>> logs/setup.log
+pip3 install keras gitpython requests ssdeep pandas sklearn matplotlib seaborn &>> logs/setup.log
 
 read -p "Do you have a gpu? [Y/N] " yn
 case $yn in
@@ -32,7 +32,7 @@ case $yn in
                  [Yy]*) pip3 install tensorflow-gpu==1.9.0 &>> logs/setup.log;;
                  [Nn]*) exit 1;;
             esac;;
-    [Nn]* ) pip3 install tensorflow &>> logs/setup.log;;
+    [Nn]* ) pip3 install tensorflow==2.0 &>> logs/setup.log;;
     * ) echo "Please answer yes or no.";;
 esac
 

@@ -10,26 +10,24 @@ import re
 import io
 import zipfile
 
-import py.config as config
-import py.utils as utils
+import model.config as config
+import model.utils as utils
 
 _logger = logging.getLogger(config.UPDATER_LOGGER_NAME)
 
 # TODO : Handle HTTP errors
 
-def all(userVS=None, passwordVS=None):
+def all():
     _logger.info("Starting to sync everything...")
     _mdl_ips_and_domains()
     _md_domains()
     _md5_hashes()
-    if userVS is not None and passwordVS is not None:
-        _download_virus_from_virusshare(userVS, passwordVS)
 
 
 def git_push():
     """Commit new downloaded files to `files` repository and push to remote."""
 
-    git_ssh_identity_file = os.path.expanduser('~/.ssh/git_octav')
+    git_ssh_identity_file = os.path.expanduser('~/.ssh/octav_id_rsa')
     git_ssh_cmd = 'ssh -i {}'.format(git_ssh_identity_file)
 
     repo = Repo(config.REPOFILES_PATH)
@@ -47,7 +45,7 @@ def git_push():
     repo.index.commit("OctAV updated")
     _logger.debug("New commit : {}".format(repo.head.commit))
 
-    with Git().custom_environment(GIT_SSH_COMMAND=git_ssh_cmd):
+    with repo.git.custom_environment(GIT_SSH_COMMAND=git_ssh_cmd):
         repo.remotes.origin.push()
         _logger.info("Changes have been pushed to remote repo")
 
@@ -69,7 +67,7 @@ def _md5_hashes():
         url = "{}{:05d}.md5".format(config.VIRUS_SHARE_BASE_URL, file_number)
 
         _logger.debug("Downloading {}".format(url))
-        resp = requests.get(url)
+        resp = requests.get(url, timeout=10)
         status = resp.status_code
 
         # 404 code means we have reached the end of what we need to download
@@ -85,7 +83,8 @@ def _md5_hashes():
         with open("{}{:05d}.md5".format(config.MD5_HASHES_DIR, file_number), "w") as hashes_file:
             hashes_file.write(content)
 
-        config.update("sync", "last_hashes_file_downloaded", file_number) 
+        config.update("sync", "last_hashes_file_downloaded", file_number)
+    _logger.info("Done")
 
 
 def _mdl_ips_and_domains():
@@ -132,35 +131,3 @@ def _md_domains():
 
     zip_file = zipfile.ZipFile(io.BytesIO(resp.content))
     zip_file.extractall(config.REPOFILES_PATH)
-
-
-def _download_virus_from_virusshare(user, password):
-    """Download new malwares from `virusshare.com`."""
-
-    _logger.info("Retrieving malwares...")
-
-    if not os.path.isdir(config.MALWARES_DIR):
-        os.makedirs(config.MALWARES_DIR)
-
-    respGetVS = requests.get('https://virusshare.com')
-    if respGetVS.status_code == 200:
-        cookie = respGetVS.headers['Set-Cookie'].split(";")[0]
-        headers = {'Cookie': '{}'.format(cookie)}
-
-        respAuth = requests.post('https://virusshare.com/processlogin.4n6', data = {"username":"{}".format(user), "password":"{}".format(password)}, headers=headers)
-        if "NO BOTS! NO SCRAPERS!" not in respAuth.text:
-            start = 0
-            parser = utils.VirusShareHTMLParser(headers)
-
-            while not parser.stop:
-                resp = requests.post('https://virusshare.com/search.4n6', data = {'search':'linux', 'start':'{}'.format(start)}, headers=headers)
-
-                body = resp.text
-
-                parser.feed(body)
-
-                start += 20
-        else:
-            raise Exception("Error during authentication to VirusShare.")
-    else:
-        raise Exception("Error, VirusShare is not available (status {}).".format(respGetVS.status_code))

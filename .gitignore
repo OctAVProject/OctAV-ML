@@ -1,8 +1,11 @@
 # Project specific
 logs/
 model_assessment/*
-files
+files/
+dataset/
+sandbox/
 dataset.csv
+requirements_dataset_generator.txt
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

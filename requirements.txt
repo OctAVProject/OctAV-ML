@@ -1,0 +1,8 @@
+keras
+gitpython
+requests
+ssdeep
+pandas
+sklearn
+matplotlib
+seaborn

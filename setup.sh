@@ -7,17 +7,17 @@ if ! [ -d logs ]; then
     mkdir logs
 fi
 
-if ! [ -d "files" ];then
+if ! [ "$(ls -A files)" ];then
     echo "Cloning OctAV-Files repository"
-    if git clone git@github.com:OctAVProject/OctAV-Files.git files &> /dev/null; then
+    if git clone git@github.com:OctAVProject/OctAV-Files.git files; then
         echo "Error: please install git"
         exit 1
     fi
 fi
 
-if ! [ -d "files" ];then
+if ! [ -d "OctAV-Dataset-Generator" ];then
     echo "Cloning OctAV-Dataset-Generator repository"
-    if git clone https://github.com/OctAVProject/OctAV-Dataset-Generator.git &> /dev/null; then
+    if git clone https://github.com/OctAVProject/OctAV-Dataset-Generator.git; then
         echo "Error: please install git"
         exit 1
     else

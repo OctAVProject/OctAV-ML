@@ -31,7 +31,7 @@ $ cd OctAV-Manager/
 $ ./setup.sh
 ```
 
-### OctAV Manager
+## OctAV Manager
 
 This repository's goal is to load the files repository with data from public lists and with the Machine Learning model for Octav dynamic analysis.
 
@@ -86,7 +86,7 @@ optional arguments:
 
 Ex: `python -m dataset --legit-dirs /bin /sbin /usr/bin --db dataset.db --append --stats`
 
-#  Export dataset to csv directly
+###  Export dataset to csv directly
 
 To export the db file to csv format directly usable by the manager, use the following command :
 

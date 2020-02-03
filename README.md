@@ -86,4 +86,10 @@ optional arguments:
 
 Ex: `python -m dataset --legit-dirs /bin /sbin /usr/bin --db dataset.db --append --stats`
 
+#  Export dataset to csv directly
+
+To export the db file to csv format directly usable by the manager, use the following command :
+
+`python -m dataset --export-csv --db database_filename`
+
 

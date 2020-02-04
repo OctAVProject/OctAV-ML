@@ -17,7 +17,7 @@ import manager.config as config
 _logger = logging.getLogger(config.TENSORFLOW_LOGGER_NAME)
 
 
-def _print_confusion_matrix(confusion_matrix, class_names, figsize = (10,7), fontsize=14):
+def _print_confusion_matrix(confusion_matrix, class_names, figsize=(10, 7), fontsize=14):
     
     df_cm = pd.DataFrame(
         confusion_matrix, index=class_names, columns=class_names, 
@@ -46,26 +46,32 @@ def data_processing(X_train, Y_train, X_check, Y_check, X_test, Y_test):
     return X_train, X_check, X_test
 
 
-def create_and_save_model(X_train, Y_train, max_seq_length):
+def train_and_save(X_train, Y_train, max_seq_length):
     """Create and save the model used by Octav dynamic analysis."""
     _logger.info("Training model...")
 
     if not os.path.isdir(config.REPOFILES_PATH):
         os.makedirs(config.REPOFILES_PATH)
     
-    clf_rf = RandomForestClassifier(n_jobs = -1, oob_score = True, n_estimators = 30)
+    clf_rf = RandomForestClassifier(n_jobs=-1, oob_score=True, n_estimators=30)
     clf_rf.fit(X_train['syscall_seq'].values.tolist(), Y_train)
-    
-    #save model
+
+    # save model
     with open("files/random_forest_model_{}".format(max_seq_length), 'wb') as f:
         pickle.dump(clf_rf, f)
         _logger.info("Model saved in files/random_forest_model_{}".format(max_seq_length))
 
-    return clf_rf
 
-
-def check_model(X_train, Y_train, X_check, Y_check, X_test, Y_test, model):
+def check_model(X_train, Y_train, X_check, Y_check, X_test, Y_test):
     _logger.info("Assess model and compute metrics...")
+
+    model_file_path = "files/"
+    for filename in os.listdir(model_file_path):
+        if filename.startswith('random_forest_model'):
+            model_file_path += filename
+
+    with open(model_file_path, "rb") as f:
+        model = pickle.load(f)
 
     #evaluation
     _logger.info("Score on train dataset : {}".format(model.score(X_train['syscall_seq'].values.tolist(), Y_train)))

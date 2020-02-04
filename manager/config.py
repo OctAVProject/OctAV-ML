@@ -36,6 +36,7 @@ getbool = _config.getboolean
 
 _config_lock = threading.Lock()
 
+
 def set_logger(level=logging.INFO):
     if not os.path.isdir(LOG_DIR):
         os.mkdir(LOG_DIR)

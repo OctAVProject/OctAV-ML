@@ -16,7 +16,13 @@ _logger_up = logging.getLogger(config.UPDATER_LOGGER_NAME)
 _logger_tf = logging.getLogger(config.TENSORFLOW_LOGGER_NAME)
 
 
-def generate_dataset(dataset_path):
+# TODO : load dataset from the sqlite db
+def load_dataset(dataset_db):
+    pass
+
+
+# TODO : remove and use DB instead
+def load_dataset_from_csv(dataset_path):
     """Read strace files and malwares reports to create a dataset with one-hot-encoded datas."""
     _logger_tf.info("Loading dataset...")
 
@@ -92,7 +98,7 @@ def _cut_dataset_sequences(dataset_sequences, ratios):
     
 def _shuffle_dataset(legits_sequences, malwares_sequences):
     sequences = np.concatenate((legits_sequences, malwares_sequences))
-    labels = np.concatenate(([0 for i in range(len(legits_sequences))], [1 for i in range(len(malwares_sequences))]))
+    labels = np.concatenate(([0] * len(legits_sequences), [1] * len(malwares_sequences)))
     
     indices = np.arange(len(sequences))
     np.random.shuffle(indices)
@@ -103,9 +109,8 @@ def _shuffle_dataset(legits_sequences, malwares_sequences):
     return X, Y
 
 
-def split_dataset(legits_sys_sequences, malwares_sys_sequences, ratios=[0.6,0.2,0.2]):
+def split_dataset(legits_sys_sequences, malwares_sys_sequences, ratios=(0.6, 0.2, 0.2)):
     _logger_tf.info("Splittint dataset into train, check and test datasets...")
-
 
     #Cut the legits dataset in three parts
     train_legits_sequences, check_legits_sequences, test_legits_sequences = _cut_dataset_sequences(legits_sys_sequences, ratios)
@@ -122,8 +127,8 @@ def split_dataset(legits_sys_sequences, malwares_sys_sequences, ratios=[0.6,0.2,
     #Shuffle test dataset
     X_test, Y_test = _shuffle_dataset(test_legits_sequences, test_malwares_sequences)
 
-    return (X_train, Y_train) , (X_check, Y_check), (X_test, Y_test)
-	
+    return (X_train, Y_train), (X_check, Y_check), (X_test, Y_test)
+
 
 def sed_in_place(pattern, replace, source):
     """Read file and replace pattern string by replace string"""
@@ -144,12 +149,12 @@ def sed_in_place(pattern, replace, source):
 
 
 def remove_duplicate_domain_names():
-    with open("{}listIpAndDomains.csv".format(config.REPOFILES_PATH), "r") as mdlfile:
+    with open("{}listIpAndDomains.csv".format(config.REPOFILES_PATH), "r") as csvfile:
         mdlcontent = csv.reader(csvfile, delimiter=',', quotechar='"')
 
     with open("{}justdomains".format(config.REPOFILES_PATH), "r") as mdfile:
         mdcontent = mdfile.read()
 
-    for domain_name in mdlcontent:
-        if mdlcontent.row[1] in mdcontent:
+    for row in mdlcontent:
+        if row[1] in mdcontent:
             sed_in_place(mdlcontent.row[1] + "\n", "", "{}justdomains".format(config.REPOFILES_PATH))
